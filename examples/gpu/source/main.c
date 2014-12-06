@@ -9,7 +9,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <math.h>
 #include <3ds.h>
 
@@ -127,26 +126,10 @@ void GPU_SetDummyTexEnv(u8 num)
 // topscreen
 void renderFrame()
 {
-	GPU_SetViewport((u32*)osConvertVirtToPhys((u32)gpuDOut),(u32*)osConvertVirtToPhys((u32)gpuOut),0,0,240*2,400);
-	
-	GPU_DepthRange(-1.0f, 0.0f);
-	GPU_SetFaceCulling(GPU_CULL_BACK_CCW);
-	GPU_SetStencilTest(false, GPU_ALWAYS, 0x00, 0xFF, 0x00);
-	GPU_SetStencilOp(GPU_KEEP, GPU_KEEP, GPU_KEEP);
-	GPU_SetBlendingColor(0,0,0,0);
-	GPU_SetDepthTestAndWriteMask(true, GPU_GREATER, GPU_WRITE_ALL);
-	
-	GPUCMD_AddSingleParam(0x00010062, 0); 
-	GPUCMD_AddSingleParam(0x000F0118, 0);
-	
 	//setup shader
 	SHDR_UseProgram(shader, 0);
-	
-	GPU_SetAlphaBlending(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
-	GPU_SetAlphaTest(false, GPU_ALWAYS, 0x00);
-	
+
 	GPU_SetTextureEnable(GPU_TEXUNIT0);
-	
 	GPU_SetTexEnv(0, 
 		GPU_TEVSOURCES(GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR), 
 		GPU_TEVSOURCES(GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR),
@@ -161,61 +144,95 @@ void renderFrame()
 	GPU_SetDummyTexEnv(5);
 
 	//texturing stuff
-		GPU_SetTexture(GPU_TEXUNIT0, (u32*)osConvertVirtToPhys((u32)texData),128,128,GPU_TEXTURE_MAG_FILTER(GPU_NEAREST)|GPU_TEXTURE_MIN_FILTER(GPU_NEAREST),GPU_RGBA8);
-		GPU_SetAttributeBuffers(3, (u32*)osConvertVirtToPhys((u32)texData),
+	GPU_SetTexture(GPU_TEXUNIT0, (u32*)osConvertVirtToPhys((u32)texData),128,128,GPU_TEXTURE_MAG_FILTER(GPU_NEAREST)|GPU_TEXTURE_MIN_FILTER(GPU_NEAREST),GPU_RGBA8);
+	GPU_SetAttributeBuffers(3, (u32*)osConvertVirtToPhys((u32)texData),
 			GPU_ATTRIBFMT(0, 3, GPU_FLOAT)|GPU_ATTRIBFMT(1, 2, GPU_FLOAT)|GPU_ATTRIBFMT(2, 3, GPU_FLOAT),
 			0xFFC, 0x210, 1, (u32[]){0x00000000}, (u64[]){0x210}, (u8[]){3});
 
 	//setup lighting (this is specific to our shader)
-		vect3Df_s lightDir=vnormf(vect3Df(cos(lightAngle), -1.0f, sin(lightAngle)));
-		GPU_SetUniform(SHDR_GetUniformRegister(shader, "lightDirection", 0), (u32*)(float[]){0.0f, -lightDir.z, -lightDir.y, -lightDir.x}, 1);
-		GPU_SetUniform(SHDR_GetUniformRegister(shader, "lightAmbient", 0), (u32*)(float[]){0.7f, 0.4f, 0.4f, 0.4f}, 1);
+	vect3Df_s lightDir=vnormf(vect3Df(cos(lightAngle), -1.0f, sin(lightAngle)));
+	GPU_SetUniform(SHDR_GetUniformRegister(shader, "lightDirection", 0), (u32*)(float[]){0.0f, -lightDir.z, -lightDir.y, -lightDir.x}, 1);
+	GPU_SetUniform(SHDR_GetUniformRegister(shader, "lightAmbient", 0), (u32*)(float[]){0.7f, 0.4f, 0.4f, 0.4f}, 1);
 
 	//initialize projection matrix to standard perspective stuff
 	gsMatrixMode(GS_PROJECTION);
-	gsProjectionMatrix(80.0f*M_PI/180.0f, 240.0f/400.0f, 0.01f, 100.0f);
-	gsRotateZ(M_PI/2); //because framebuffer is sideways...
+	gsPopMatrix(); //restore default matrix
+	gsPushMatrix(); //backup default matrix
+
 
 	//draw object
-		gsMatrixMode(GS_MODELVIEW);
-		gsPushMatrix();
-			gsTranslate(position.x, position.y, position.z);
-			gsRotateX(angle.x);
-			gsRotateY(angle.y);
-			gsVboDraw(&vbo);
-		gsPopMatrix();
+	gsMatrixMode(GS_MODELVIEW);
+	gsPushMatrix();
+		gsTranslate(position.x, position.y, position.z);
+		gsRotateX(angle.x);
+		gsRotateY(angle.y);
+		gsVboDraw(&vbo);
+	gsPopMatrix();
 	GPU_FinishDrawing();
 }
 
-int main(int argc, char** argv)
+void initGS()
 {
-	//setup services
-	srvInit();	
-	aptInit();
-	gfxInit();
-	hidInit(NULL);
-
-	//initialize GPU
-	GPU_Init(NULL);
-
-	//let GFX know we're ok with doing stereoscopic 3D rendering
-	gfxSet3D(true);
-
 	//load our vertex shader binary
 	shader=SHDR_ParseSHBIN((u32*)test_vsh_shbin, test_vsh_shbin_size);
 
 	//initialize GS
 	gsInit(shader);
 
+	gsStartFrame();
+
+	GPU_SetViewport((u32*)osConvertVirtToPhys((u32)gpuDOut),(u32*)osConvertVirtToPhys((u32)gpuOut),0,0,240*2,400);
+
+	GPU_DepthRange(-1.0f, 0.0f);
+	GPU_SetFaceCulling(GPU_CULL_BACK_CCW);
+	GPU_SetStencilTest(false, GPU_ALWAYS, 0x00, 0xFF, 0x00);
+	GPU_SetStencilOp(GPU_KEEP, GPU_KEEP, GPU_KEEP);
+	GPU_SetBlendingColor(0,0,0,0);
+	GPU_SetDepthTestAndWriteMask(true, GPU_GREATER, GPU_WRITE_ALL);
+
+	GPUCMD_AddSingleParam(0x00010062, 0); 
+	GPUCMD_AddSingleParam(0x000F0118, 0);
+
+	//setup shader
+	SHDR_UseProgram(shader, 0);
+
+	GPU_SetAlphaBlending(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
+	GPU_SetAlphaTest(false, GPU_ALWAYS, 0x00);
+
+	//initialize projection matrix to standard perspective stuff
+	gsMatrixMode(GS_PROJECTION);
+	gsProjectionMatrix(80.0f*M_PI/180.0f, 240.0f/400.0f, 0.01f, 100.0f);
+	gsRotateZ(M_PI/2); //because framebuffer is sideways...
+	gsPushMatrix(); //babkup default matrix
+
+
+	GPU_FinishDrawing();
+
+	GPUCMD_Finalize();
+
+	GPUCMD_FlushAndRun(NULL);
+	gspWaitForP3D();
+}
+
+void initGPU(u32 gpuCmdSize, u32 **gpuCmd, u32 **gpuCmdRight)
+{
+	//initialize GPU
+	GPU_Init(NULL);
+
 	//allocate our GPU command buffers
 	//they *have* to be on the linear heap
-	u32 gpuCmdSize=0x40000;
-	u32* gpuCmd=(u32*)linearAlloc(gpuCmdSize*4);
-	u32* gpuCmdRight=(u32*)linearAlloc(gpuCmdSize*4);
+	*gpuCmd=(u32*)linearAlloc(gpuCmdSize*4);
+	*gpuCmdRight=(u32*)linearAlloc(gpuCmdSize*4);
+
+	//let GFX know we're ok with doing stereoscopic 3D rendering
+	gfxSet3D(true);
 
 	//actually reset the GPU
-	GPU_Reset(NULL, gpuCmd, gpuCmdSize);
+	GPU_Reset(NULL, *gpuCmd, gpuCmdSize);
+}
 
+void loadData()
+{
 	//create texture
 	texData=(u32*)linearMemAlign(texture_bin_size, 0x80); //textures need to be 0x80-byte aligned
 	memcpy(texData, texture_bin, texture_bin_size);
@@ -229,6 +246,24 @@ int main(int argc, char** argv)
 	//initialize object position and angle
 	position=vect3Df(0.0f, 0.0f, -2.0f);
 	angle=vect3Df(M_PI/4, M_PI/4, 0.0f);
+}
+
+int main(int argc, char** argv)
+{
+	//setup services
+	srvInit();	
+	aptInit();
+	gfxInit();
+	hidInit(NULL);
+
+	u32 *gpuCmd, *gpuCmdRight;
+	u32 gpuCmdSize=0x40000;
+	initGPU(gpuCmdSize, &gpuCmd, &gpuCmdRight);
+
+	loadData();
+
+	initGS();
+
 
 	//background color (blue)
 	u32 backgroundColor=RGBA8(0x68, 0xB0, 0xD8, 0xFF);

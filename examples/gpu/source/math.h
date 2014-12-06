@@ -3,6 +3,7 @@
 
 #include <3ds/types.h>
 #include <math.h>
+#include "matrix.h"
 
 typedef float mtx44[4][4];
 typedef float mtx33[3][3];
@@ -126,13 +127,20 @@ static inline vect3Df_s vi2f(vect3Di_s v)
 }
 
 void loadIdentity44(float* m);
-void multMatrix44(float* m1, float* m2, float* m);
 
-void translateMatrix(float* tm, float x, float y, float z);
-void rotateMatrixX(float* tm, float x, bool r);
-void rotateMatrixY(float* tm, float x, bool r);
-void rotateMatrixZ(float* tm, float x, bool r);
+//void multMatrix44(float* m1, float* m2, float* m);
+//void translateMatrix(float* tm, float x, float y, float z);
+//void rotateMatrixX(float* tm, float x, bool r);
+//void rotateMatrixY(float* tm, float x, bool r);
+//void rotateMatrixZ(float* tm, float x, bool r);
 void scaleMatrix(float* tm, float x, float y, float z);
+
+#define multMatrix44(m1, m2, out) multMatrix44FPU( (float (*)[4])(m1), (float (*)[4])(m2), (float (*)[4])(out) )
+#define translateMatrix(m, x, y, z) {float vec[3]={x,y,z}; translateMatrixFPU( (float (*)[4])(m), vec, (float (*)[4])(m)); }
+#define rotateMatrixX(m, x, r) rotateMatrixXFPU( (float (*)[4])(m), x, (float (*)[4])(m), r )
+#define rotateMatrixY(m, y, r) rotateMatrixYFPU( (float (*)[4])(m), y, (float (*)[4])(m), r )
+#define rotateMatrixZ(m, z, r) rotateMatrixZFPU( (float (*)[4])(m), z, (float (*)[4])(m), r )
+
 
 void initProjectionMatrix(float* m, float fovy, float aspect, float near, float far);
 

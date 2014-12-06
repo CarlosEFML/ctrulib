@@ -11,11 +11,11 @@ void loadIdentity44(float* m)
 	m[0]=m[5]=m[10]=m[15]=1.0f;
 }
 
+/*
 void multMatrix44(float* m1, float* m2, float* m) //4x4
 {
 	int i, j;
 	for(i=0;i<4;i++)for(j=0;j<4;j++)m[i+j*4]=(m1[0+j*4]*m2[i+0*4])+(m1[1+j*4]*m2[i+1*4])+(m1[2+j*4]*m2[i+2*4])+(m1[3+j*4]*m2[i+3*4]);
-
 }
 
 void translateMatrix(float* tm, float x, float y, float z)
@@ -80,6 +80,7 @@ void rotateMatrixZ(float* tm, float x, bool r)
 	else multMatrix44(rm,tm,m);
 	memcpy(tm,m,16*sizeof(float));
 }
+*/
 
 void scaleMatrix(float* tm, float x, float y, float z)
 {
